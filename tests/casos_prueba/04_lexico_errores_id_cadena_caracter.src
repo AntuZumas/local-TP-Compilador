@@ -1,0 +1,7 @@
+lexiderr
+integer a;
+begin
+    Mayus := 1$i;
+    _guion := 2$i;
+    a := 3$i; @ pout(a);
+    pout("cadena abierta sin cerrar

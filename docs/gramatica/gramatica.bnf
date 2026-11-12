@@ -1,13 +1,14 @@
-# Gram√°tica generada desde compiler_frontend/parser.py con SLY 0.5.
+# Gram·tica generada desde compiler_frontend/parser.py con SLY 0.5.
 # No editar a mano. Regenerar: python scripts/export_grammar.py
-# Estados LALR: 256; shift/reduce: 0; reduce/reduce: 0.
-# <empty> = secuencia vac√≠a; error = s√≠mbolo especial de recuperaci√≥n.
-# La primera producci√≥n es el inicio aumentado del generador.
+# Estados LALR: 260; shift/reduce: 0; reduce/reduce: 0.
+# <empty> = secuencia vacÌa; error = sÌmbolo especial de recuperaciÛn.
+# La primera producciÛn es el inicio aumentado del generador.
 
 S' -> program
 program -> ID declarations BEGIN global_statements END
 declarations -> <empty>
 declarations -> declarations declaration
+declaration -> error ;
 declaration -> comptime_declaration
 declaration -> class_declaration
 declaration -> function_declaration
@@ -31,6 +32,7 @@ import_opt -> <empty>
 import_opt -> IMPORT FROM id_list
 members -> member
 members -> members member
+member -> error ;
 member -> inheritance
 member -> method_declaration
 member -> attribute_declaration
@@ -56,7 +58,7 @@ simple_statement -> error ;
 simple_statement -> invocation ;
 simple_statement -> output ;
 simple_statement -> assignment ;
-assignment -> attribute = expression
+assignment -> attribute ASSIGN expression
 assignment -> ID ASSIGN expression
 output -> POUT ( STRING )
 output -> POUT ( expression )
@@ -118,8 +120,8 @@ plain_invocation -> ID ( plain_arguments ) order
 plain_arguments -> plain_expression
 plain_arguments -> plain_arguments , plain_expression
 order -> [ order_items ]
-order_items -> ORDER_INDEX
-order_items -> order_items , ORDER_INDEX
+order_items -> INT
+order_items -> order_items , INT
 number -> - FLOAT
 number -> - INT
 number -> FLOAT

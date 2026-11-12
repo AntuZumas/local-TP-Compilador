@@ -13,7 +13,7 @@ reserved = {word.upper(): word.upper() for word in (
     "until comptime import from export to extends toi"
 ).split()}
 token_types = set(reserved.values()) | {
-    "ID", "INT", "FLOAT", "STRING", "ORDER_INDEX", "ASSIGN", "GE", "LE", "EQ", "NE"
+    "ID", "INT", "FLOAT", "STRING", "ASSIGN", "GE", "LE", "EQ", "NE"
 }
 integer_pattern = re.compile(r"[0-9]+\$i\Z")
 float_pattern = re.compile(r"[0-9]*\.[0-9]+(?:s[+-]?[0-9]+)?\Z")
@@ -77,8 +77,8 @@ class ProjectLexer(Lexer):
                 self.report(token, "L_INTEGER_RANGE", "Magnitud INTEGER mayor que 32768.")
                 return None
             value = str(int(digits))
-            ref = self.symbols.intern("constant", raw, "INTEGER", value)
-            return self.wrap(token, value, ref)
+            # El alta en TS se realiza en el parser una vez resuelto el signo.
+            return self.wrap(token, value, None)
         if float_pattern.fullmatch(raw):
             try:
                 number = Decimal(raw.replace("s", "e"))
@@ -90,14 +90,8 @@ class ProjectLexer(Lexer):
                 self.report(token, "L_FLOAT_RANGE", "Constante fuera del rango SINGLEF adoptado.")
                 return None
             token.type = "FLOAT"
-            ref = self.symbols.intern("constant", raw, "SINGLEF", str(number))
-            return self.wrap(token, str(number), ref)
-        if raw.isascii() and raw.isdigit():
-            # Sólo la gramatica de orden permite este token, nunca expresiones.
-            token.type = "ORDER_INDEX"
-            value = raw.lstrip("0") or "0"
-            ref = self.symbols.intern("constant", raw, "ORDER_INDEX", value)
-            return self.wrap(token, value, ref)
+            # El alta en TS se realiza en el parser una vez resuelto el signo.
+            return self.wrap(token, str(number), None)
         self.report(token, "L_NUMBER_FORMAT", f"Constante mal formada: {raw}.")
         return None
 

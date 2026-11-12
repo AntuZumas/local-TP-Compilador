@@ -1,0 +1,7 @@
+ctrlerr
+integer a, b;
+begin
+    if (a) pout(a); end_if;
+    repeat pout(a); a := a + 1$i; ;
+    if (a < b) pout(a);
+end

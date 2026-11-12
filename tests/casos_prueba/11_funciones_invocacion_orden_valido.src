@@ -1,0 +1,14 @@
+funcok
+integer r;
+integer function sumar(integer x, integer y, singlef z)
+    integer function interna(integer v)
+    begin
+        ret(v * 2$i);
+    end;
+begin
+    ret(interna(x)[1$i] + y + toi(z));
+end;
+begin
+    r := sumar(10$i, 20$i, 1.5)[2$i, 1$i, 3$i];
+    pout(r);
+end

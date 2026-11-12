@@ -1,0 +1,7 @@
+funcerr
+integer a;
+begin
+    a := f(a);
+    a := f(a)[1];
+    ret(a);
+end

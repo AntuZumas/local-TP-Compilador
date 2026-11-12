@@ -29,7 +29,7 @@ class Analysis:
             "return", "if", "repeat", "call_statement", "import", "export", "inheritance",
         }
         return sorted((node for node in walk_nodes(self.tree) if node.kind in selected),
-                      key=lambda node: (node.line, node.column))
+                      key=lambda node: node.order)
 
     def to_dict(self):
         return {"ok": self.ok, "tokens": to_data(self.tokens),
@@ -45,7 +45,6 @@ def analyze(source: str) -> Analysis:
     symbols = SymbolTable()
     diagnostics = []
     lexer = ProjectLexer(symbols, diagnostics)
-    # Batch para conservar una instantánea del flujo y facilitar la inspección.
     tokens = list(lexer.tokenize(source))
     tree = GrammarParser(symbols, diagnostics, source).parse(iter(tokens))
     diagnostics.sort(key=lambda d: (d.line, d.column, d.phase))

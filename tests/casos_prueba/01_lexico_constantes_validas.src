@@ -1,0 +1,13 @@
+lexconstok
+integer a, b, c;
+singlef x, y, z;
+begin
+    a := 0$i;
+    b := 32767$i;
+    c := -32768$i;
+    c := -1$i;
+    x := 0.0;
+    y := .6;
+    z := -1.2;
+    x := 1.25s+2 + 3.5s-4;
+end

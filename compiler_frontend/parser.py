@@ -26,6 +26,15 @@ class GrammarParser(Parser):
     def node(self, kind, production):
         return make_node(kind, [production[i] for i in range(len(production))])
 
+    def register_positive_int(self, literal):
+        if int(literal.value) > 32767:
+            self.diagnostics.append(Diagnostic(
+                "syntactic", "S_INTEGER_RANGE", "INTEGER positivo mayor que 32767.",
+                literal.line, literal.column))
+        ref = self.symbols.intern("constant", literal.text, "INTEGER", literal.value)
+        literal.symbol = ref
+        return literal
+
     # Programa y declaraciones. Declaraciones opcionales; cuerpos no vacíos.
     @_('ID declarations BEGIN global_statements END')
     def program(self, p):
@@ -39,6 +48,11 @@ class GrammarParser(Parser):
        'class_declaration', 'comptime_declaration')
     def declaration(self, p):
         return p[0]
+
+    @_('error ";"')
+    def declaration(self, p):
+        self.errok()
+        return Node("invalid_declaration", (), *self.last_error)
 
     @_('INTEGER', 'SINGLEF')
     def basic_type(self, p):
@@ -93,6 +107,11 @@ class GrammarParser(Parser):
     def member(self, p):
         return p[0]
 
+    @_('error ";"')
+    def member(self, p):
+        self.errok()
+        return Node("invalid_member", (), *self.last_error)
+
     @_('basic_type id_list export_opt ";"')
     def attribute_declaration(self, p):
         return self.node("attribute_declaration", p)
@@ -140,7 +159,7 @@ class GrammarParser(Parser):
         self.errok()
         return Node("invalid_statement", (), *self.last_error)
 
-    @_('ID ASSIGN expression', 'attribute "=" expression')
+    @_('ID ASSIGN expression', 'attribute ASSIGN expression')
     def assignment(self, p):
         return self.node("assignment", p)
 
@@ -258,38 +277,108 @@ class GrammarParser(Parser):
     def order(self, p):
         return self.node("evaluation_order", p)
 
-    @_('order_items "," ORDER_INDEX', 'ORDER_INDEX')
+    @_('order_items "," INT', 'INT')
     def order_items(self, p):
-        return p[0] + [p[2]] if len(p) == 3 else [p[0]]
+        if len(p) == 3:
+            return p[0] + [self.register_positive_int(p[2])]
+        return [self.register_positive_int(p[0])]
 
     @_('INT', 'FLOAT', '"-" INT', '"-" FLOAT')
     def number(self, p):
         negative = len(p) == 2
         literal = p[1] if negative else p[0]
-        if not negative and literal.type == "INT" and int(literal.value) > 32767:
-            self.diagnostics.append(Diagnostic(
-                "syntactic", "S_INTEGER_RANGE", "INTEGER positivo mayor que 32767.",
-                literal.line, literal.column))
         if negative:
-            # No alterar la entrada de magnitud: puede pertenecer a otros tokens.
             value = str(Decimal(literal.value).copy_negate())
             data_type = "INTEGER" if literal.type == "INT" else "SINGLEF"
             text = "-" + literal.text
             ref = self.symbols.intern("constant", text, data_type, value)
+            literal.symbol = ref
             literal = replace(literal, text=text, value=value, symbol=ref,
                               line=p[0].line, column=p[0].column)
+        else:
+            if literal.type == "INT":
+                self.register_positive_int(literal)
+            else:
+                ref = self.symbols.intern("constant", literal.text, "SINGLEF", literal.value)
+                literal.symbol = ref
         return make_node("constant", [literal])
 
-    def error(self, token):
+    def _lexeme(self, token):
+        """Extrae el Lexeme tanto de un Token normal como de un YaccSymbol de error."""
         if token is None:
+            return None
+        val = getattr(token, "value", token)
+        while hasattr(val, "value") and not hasattr(val, "text"):
+            val = val.value
+        return val if hasattr(val, "text") else None
+
+    def _contextual_error(self, lexeme):
+        """Mejora el mensaje de error según los símbolos apilados y acciones esperadas."""
+        stack_types = [getattr(s, "type", None) for s in getattr(self, "symstack", [])]
+        state = getattr(self, "state", None)
+        expected = set(self._lrtable.lr_action.get(state, {}).keys()) if state is not None else set()
+        found = lexeme.text if lexeme is not None else "EOF"
+
+        # 1. Falta el orden de evaluación obligatorio [...] tras cerrar paréntesis de argumentos
+        if stack_types[-4:] == ["ID", "(", "arguments", ")"] or stack_types[-4:] == ["ID", "(", "plain_arguments", ")"]:
+            return (
+                "S_MISSING_ORDER",
+                f"Falta el orden de evaluación obligatorio '[...]' en la invocación antes de {found!r}.",
+            )
+        # 2. Falta coma en declaración de variables/atributos/objetos (ej. integer a b;)
+        if (
+            lexeme is not None
+            and lexeme.type == "ID"
+            and "," in expected
+            and ";" in expected
+            and stack_types
+            and stack_types[-1] in {"ID", "id_list"}
+        ):
+            return (
+                "S_MISSING_COMMA",
+                f"Falta ',' entre identificadores en la declaración antes de {found!r}.",
+            )
+        # 3. Falta END_IF al cerrar bloque IF
+        if "END_IF" in expected and (lexeme is None or lexeme.type in {"END", ";", "ELSE"}):
+            return (
+                "S_MISSING_END_IF",
+                "Falta 'end_if' para cerrar la estructura condicional IF.",
+            )
+        # 4. Falta UNTIL en estructura REPEAT
+        if "UNTIL" in expected and stack_types and "REPEAT" in stack_types:
+            return (
+                "S_MISSING_UNTIL",
+                f"Se esperaba 'until' al finalizar el cuerpo de 'repeat', se encontró {found!r}.",
+            )
+        # 5. Falta paréntesis de apertura o cierre
+        if expected == {"("} and lexeme is not None:
+            return (
+                "S_MISSING_LPAREN",
+                f"Falta '(' antes de {found!r}.",
+            )
+        if ")" in expected and "]" not in expected and lexeme is not None and lexeme.type == ";":
+            return (
+                "S_MISSING_RPAREN",
+                "Falta ')' antes de ';'.",
+            )
+        return None
+
+    def error(self, token):
+        lexeme = self._lexeme(token)
+        custom = self._contextual_error(lexeme)
+        if lexeme is None:
             line = self.source.count("\n") + 1
             column = len(self.source) - self.source.rfind("\n")
-            message = "Fin de archivo inesperado; falta completar una estructura."
-            code = "S_EOF"
+            code, message = custom or (
+                "S_EOF",
+                "Fin de archivo inesperado; falta completar una estructura.",
+            )
         else:
-            line, column = token.value.line, token.value.column
-            message = f"Token inesperado {token.value.text!r} ({token.type})."
-            code = "S_UNEXPECTED"
+            line, column = lexeme.line, lexeme.column
+            code, message = custom or (
+                "S_UNEXPECTED",
+                f"Token inesperado {lexeme.text!r} ({lexeme.type}).",
+            )
         self.last_error = (line, column)
         self.diagnostics.append(Diagnostic("syntactic", code, message, line, column))
 

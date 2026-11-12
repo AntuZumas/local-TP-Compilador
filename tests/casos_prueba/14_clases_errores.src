@@ -1,0 +1,7 @@
+claseserr
+subclase inst;
+begin
+    inst[0$i] = 15$i;
+    inst.x := 10$i;
+    inst[1$i + 2$i] := 20$i;
+end

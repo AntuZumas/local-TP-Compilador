@@ -1,0 +1,23 @@
+clasesok
+class base_a begin
+    integer x, y export to subclase;
+    integer metodo(integer p)
+    begin
+        ret(p + 1$i);
+    end; export to subclase;
+end;
+class base_b begin
+    singlef z;
+end;
+class subclase import from base_a, base_b begin
+    integer w;
+    extends base_a, base_b;
+end;
+subclase inst;
+integer res;
+begin
+    inst[0$i] := 15$i;
+    inst[1$i] := inst[0$i] + 5$i;
+    res := inst.metodo(inst[1$i])[1$i];
+    pout(res);
+end

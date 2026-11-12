@@ -12,7 +12,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Prototipo de gramática del grupo 40")
     parser.add_argument("source", nargs="?", type=Path)
     parser.add_argument("--json", action="store_true", help="Árbol, tokens, TS y diagnósticos JSON")
-    parser.add_argument("--tokens", action="store_true", help="Mostrar tokens y tabla de símbolos")
+    parser.add_argument("--tokens", action="store_true", help="Mostrar listado de tokens")
     parser.add_argument("--grammar-report", action="store_true", help="Producciones y conflictos")
     args = parser.parse_args(argv)
     if args.grammar_report:
@@ -40,10 +40,10 @@ def main(argv=None):
             print("\nTokens:")
             for token in result.tokens:
                 print(f"{token.line}:{token.column} {token.type} {token.text!r} TS={token.symbol}")
-            print("\nTabla de símbolos:")
-            for symbol in result.symbols.entries:
-                print(f"S{symbol.reference} {symbol.category} {symbol.data_type} "
-                      f"{symbol.text!r} valor={symbol.value!r}")
+        print("\nTabla de símbolos:")
+        for symbol in result.symbols.entries:
+            print(f"S{symbol.reference} {symbol.category} {symbol.data_type} "
+                  f"{symbol.text!r} valor={symbol.value!r}")
     return 0 if result.ok else 1
 
 

@@ -1,0 +1,7 @@
+exprerr
+integer a, b, c;
+begin
+    a := b = (c = (1$i));
+    a := b = 2$i;
+    a := (1$i + 2$i);
+end

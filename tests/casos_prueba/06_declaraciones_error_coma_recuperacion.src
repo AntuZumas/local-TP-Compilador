@@ -1,0 +1,8 @@
+declerr
+integer a b;
+singlef x, y;
+begin
+    x := 1.5;
+    comptime integer z;
+    pout(x);
+end

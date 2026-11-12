@@ -1,0 +1,22 @@
+ctrlok
+integer a, b;
+begin
+    a := 0$i;
+    b := 5$i;
+    if (a < b)
+    begin
+        repeat
+        begin
+            if (a == 2$i)
+                pout("mitad");
+            else
+                pout(a);
+            end_if;
+            a := a + 1$i;
+        end
+        until (a >= b);
+    end
+    else
+        pout("fin");
+    end_if;
+end

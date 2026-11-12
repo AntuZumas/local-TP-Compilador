@@ -1,0 +1,9 @@
+lexidstr
+InTeGeR id_corto, identificador_muy_largo_que_supera_veintidos;
+BEGIN
+    // Comentario de una linea -- con guiones y simbolos @#$
+    id_corto := 10$i;
+    identificador_muy_largo_que_supera_veintidos := id_corto;
+    POUT("cadena multilinea
+con salto de linea");
+END

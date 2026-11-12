@@ -34,7 +34,7 @@ class GrammarTests(unittest.TestCase):
         self.assertGreater(report["states"], 0)
 
     def test_full_group_example(self):
-        result = self.assert_valid((root / "examples/grupo40.src").read_text())
+        result = self.assert_valid((root / "examples/grupo40.src").read_text(encoding="utf-8"))
         kinds = {node.kind for node in walk_nodes(result.tree)}
         self.assertTrue({"comptime_declaration", "class_declaration", "method_declaration",
                          "function_declaration", "object_declaration", "attribute",
@@ -59,14 +59,14 @@ class GrammarTests(unittest.TestCase):
     def test_inline_assignment_variants(self):
         for statement in ("a := b=(2$i);", "a := b+c=(4$i);",
                           "a := b=(c+2$i)*c=(a/3$i);",
-                          "a := f(b=(3.0))[1];", "a := b=(f(c)[1]+toi(x));",
-                          "a := b=(f(toi(x))[1]);", "if(a=(2$i)==2$i) pout(a); end_if;"):
+                          "a := f(b=(3.0))[1$i];", "a := b=(f(c)[1$i]+toi(x));",
+                          "a := b=(f(toi(x))[1$i]);", "if(a=(2$i)==2$i) pout(a); end_if;"):
             with self.subTest(statement=statement):
                 self.assert_valid(program(statement))
 
     def test_prohibited_nested_assignments_and_operators(self):
         for expression in ("b=(c=(1$i))", "b=(toi(c=(1.0)))",
-                           "b=(f(c=(1$i))[1])", "b=(f(g(c=(1$i))[1])[1])",
+                           "b=(f(c=(1$i))[1$i])", "b=(f(g(c=(1$i))[1$i])[1$i])",
                            "b=2$i", "b:=(2$i)"):
             with self.subTest(expression=expression):
                 self.assert_invalid(program(f"a := {expression};"))
@@ -78,31 +78,36 @@ class GrammarTests(unittest.TestCase):
                 self.assert_invalid(program(f"a := {expression};"))
 
     def test_calls_and_mandatory_order(self):
-        for call in ("f(a)[1]", "o.m(a)[1]", "f(g(a)[1],b)[2,1]"):
+        for call in ("f(a)[1$i]", "o.m(a)[1$i]", "f(g(a)[1$i],b)[2$i,1$i]"):
             with self.subTest(call=call):
                 self.assert_valid(program(f"a := {call};"))
                 self.assert_valid(program(f"{call};"))
-        for call in ("f(a)", "o.m(a)", "f()[1]", "f(a)[]", "f(a)[1$i]",
-                     "f(a)[-1]", "f(a)[1,]"):
+        for call in ("f(a)", "o.m(a)", "f()[1$i]", "f(a)[]", "f(a)[1]",
+                     "f(a)[-1$i]", "f(a)[1$i,]"):
             with self.subTest(call=call):
                 self.assert_invalid(program(f"a := {call};"))
 
+    def test_missing_evaluation_order_reports_specific_error(self):
+        result = self.assert_invalid(program("a := f(a);"))
+        codes = [d.code for d in result.diagnostics]
+        self.assertIn("S_MISSING_ORDER", codes)
+
     def test_order_values_are_not_semantically_validated_yet(self):
         # Sintaxis, no verificación de aridad ni de permutación.
-        self.assert_valid(program("a := f(a)[0,0,999];"))
+        self.assert_valid(program("a := f(a)[0$i,0$i,999$i];"))
 
-    def test_bare_integer_restricted_to_order(self):
-        for statement in ("a := 1;", "a[0] = 1$i;", "pout(2);"):
+    def test_bare_integer_rejected_everywhere(self):
+        for statement in ("a := 1;", "a[0] := 1$i;", "pout(2);", "a := f(a)[1];"):
             with self.subTest(statement=statement):
                 self.assert_invalid(program(statement))
 
     def test_positional_attributes(self):
-        for statement in ("a[0$i] = 1$i;", "a[b] = c[1$i];",
+        for statement in ("a[0$i] := 1$i;", "a[b] := c[1$i];",
                           "a := b[0$i] + c[a];", "a := b[-1$i];", "a := b[1.0];"):
             with self.subTest(statement=statement):
                 self.assert_valid(program(statement))
-        # Tipos/rango del índice son semántica posterior; su forma no es una expresión.
-        for statement in ("a[1$i+2$i] = 1$i;", "a.x = 1$i;", "a[0$i] := 1$i;"):
+        # Tipos/rango del índice son semántica posterior; '=' no válido para atributo posicional.
+        for statement in ("a[1$i+2$i] := 1$i;", "a.x := 1$i;", "a[0$i] = 1$i;"):
             with self.subTest(statement=statement):
                 self.assert_invalid(program(statement))
 
@@ -118,16 +123,35 @@ class GrammarTests(unittest.TestCase):
             with self.subTest(statement=statement):
                 self.assert_invalid(program(statement))
 
+    def test_control_structures_reported_in_completion_order(self):
+        source = (
+            "demo\n"
+            "integer a, b;\n"
+            "begin\n"
+            "  repeat\n"
+            "  begin\n"
+            "    if (a < b)\n"
+            "      a := a + 1$i;\n"
+            "    end_if;\n"
+            "  end\n"
+            "  until (a >= b);\n"
+            "end"
+        )
+        result = self.assert_valid(source)
+        control = [(n.kind, n.line) for n in result.structures if n.kind in {"if", "repeat"}]
+        # El IF interno (línea 6) finaliza antes que el REPEAT externo (línea 4).
+        self.assertEqual(control, [("if", 6), ("repeat", 4)])
+
     def test_return_contexts_and_nested_functions(self):
         self.assert_valid("""demo
 integer function f(integer a)
     integer function g(integer b)
     begin ret(b); end;
 begin
-    repeat begin if(a>0$i) ret(g(a)[1]); else ret(0$i); end_if;
+    repeat begin if(a>0$i) ret(g(a)[1$i]); else ret(0$i); end_if;
     end until(a==0$i);
 end;
-begin pout(f(1$i)[1]); end""")
+begin pout(f(1$i)[1$i]); end""")
         for statement in ("ret(1$i);", "if(a<b) ret(1$i); end_if;",
                           "repeat begin ret(1$i); end until(a<b);"):
             with self.subTest(statement=statement):
@@ -148,7 +172,7 @@ begin pout(f(1$i)[1]); end""")
 
     def test_classes_import_export_extends(self):
         prefix = "demo class ca import from cb,cc begin "
-        suffix = " end; ca obj; begin obj[0$i] = 1$i; end"
+        suffix = " end; ca obj; begin obj[0$i] := 1$i; end"
         self.assert_valid(prefix + "integer a,b export to cb; extends cb,cc; "
                           "integer m(integer p) begin ret(p); end; export to cc;" + suffix)
         for body in ("integer a; export to cb;", "extend cb;", "friend cb;",
@@ -167,15 +191,34 @@ begin pout(f(1$i)[1]); end""")
                 self.assert_invalid(program("pout(a);") + trailing)
 
     def test_recovery_keeps_later_statements_and_reports_multiple_errors(self):
-        result = self.assert_invalid((root / "examples/errores.src").read_text())
+        result = self.assert_invalid((root / "examples/errores.src").read_text(encoding="utf-8"))
         self.assertEqual(len([d for d in result.diagnostics if d.phase == "syntactic"]), 2)
         self.assertEqual([n.line for n in result.structures if n.kind == "output"], [5, 7])
+
+    def test_missing_comma_in_declaration_recovers(self):
+        source = (
+            "demo\n"
+            "integer a b;\n"
+            "singlef x, y;\n"
+            "begin\n"
+            "  x := 1.5;\n"
+            "  pout(x);\n"
+            "end"
+        )
+        result = self.assert_invalid(source)
+        syntactic = [d for d in result.diagnostics if d.phase == "syntactic"]
+        self.assertEqual(len(syntactic), 1)
+        self.assertEqual(syntactic[0].code, "S_MISSING_COMMA")
+        kinds = [n.kind for n in result.structures]
+        self.assertIn("variable_declaration", kinds)
+        self.assertIn("assignment", kinds)
+        self.assertIn("output", kinds)
 
     def test_eof_diagnostic(self):
         for source in ("", "demo begin pout(1$i);", "demo begin pout("):
             with self.subTest(source=source):
                 result = self.assert_invalid(source)
-                self.assertTrue(any(d.code == "S_EOF" for d in result.diagnostics))
+                self.assertTrue(any(d.code in {"S_EOF", "S_MISSING_END_IF"} for d in result.diagnostics))
 
     def test_ast_and_token_attributes_are_serializable(self):
         result = self.assert_valid(program("a := 1$i;"))
@@ -199,14 +242,24 @@ class LexicalIntegrationTests(unittest.TestCase):
                 self.assertFalse(result.ok)
                 self.assertIn(code, [d.code for d in result.diagnostics])
 
+    def test_negative_only_constant_does_not_insert_positive_in_ts(self):
+        result = analyze(program("a := -1$i; x := -1.2;"))
+        self.assertTrue(result.ok, result.diagnostics)
+        constants = {s.text: s.value for s in result.symbols.entries if s.category == "constant"}
+        self.assertIn("-1$i", constants)
+        self.assertNotIn("1$i", constants)
+        self.assertIn("-1.2", constants)
+        self.assertNotIn("1.2", constants)
+
     def test_negative_constant_does_not_mutate_shared_positive_symbol(self):
         result = analyze(program("a := 7$i; b := -7$i; c := 7$i;"))
         self.assertTrue(result.ok)
         values = {s.text: s.value for s in result.symbols.entries if s.category == "constant"}
         self.assertEqual(values["7$i"], "7")
         self.assertEqual(values["-7$i"], "-7")
-        refs = [t.symbol for t in result.tokens if t.text == "7$i"]
-        self.assertEqual(len(set(refs)), 1)
+        pos_refs = [t.symbol for idx, t in enumerate(result.tokens)
+                    if t.text == "7$i" and (idx == 0 or result.tokens[idx - 1].text != "-")]
+        self.assertEqual(len(set(pos_refs)), 1)
 
     def test_singlef_format_range_and_exponent_sign(self):
         for literal in ("0.0", ".6", "1.0s+2", "1.0s-2", "-1.2s-3",
@@ -269,6 +322,14 @@ class CommandLineTests(unittest.TestCase):
                 data = json.loads(proc.stdout)
                 self.assertEqual(data["ok"], code == 0)
 
+    def test_cli_always_prints_symbol_table_without_tokens_flag(self):
+        proc = subprocess.run([sys.executable, "-m", "compiler_frontend",
+                               str(root / "examples" / "minimo.src")],
+                              cwd=root, capture_output=True, text=True, timeout=15)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("Tabla de símbolos:", proc.stdout)
+        self.assertNotIn("\nTokens:", proc.stdout)
+
     def test_missing_file_and_report(self):
         proc = subprocess.run([sys.executable, "-m", "compiler_frontend", "no-existe.src"],
                               cwd=root, capture_output=True, text=True, timeout=15)
@@ -277,6 +338,20 @@ class CommandLineTests(unittest.TestCase):
                               cwd=root, capture_output=True, text=True, timeout=15)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(json.loads(proc.stdout)["reduce_reduce"], [])
+
+
+class CasosPruebaFilesTests(unittest.TestCase):
+    def test_casos_prueba_files(self):
+        casos_dir = root / "tests" / "casos_prueba"
+        if not casos_dir.exists():
+            return
+        for src_file in sorted(casos_dir.glob("*.src")):
+            with self.subTest(file=src_file.name):
+                result = analyze(src_file.read_text(encoding="utf-8"))
+                if "err" in src_file.stem or "errores" in src_file.stem:
+                    self.assertFalse(result.ok, f"Se esperaba fallo en {src_file.name}")
+                else:
+                    self.assertTrue(result.ok, f"Fallo inesperado en {src_file.name}: {result.diagnostics}")
 
 
 if __name__ == "__main__":

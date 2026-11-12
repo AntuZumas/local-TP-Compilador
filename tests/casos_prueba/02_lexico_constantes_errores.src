@@ -1,0 +1,11 @@
+lexconsterr
+integer a;
+singlef x;
+begin
+    a := 32768$i;
+    a := 32769$i;
+    a := 15;
+    x := 1.;
+    x := 1.0d2;
+    x := 3.50s+38;
+end

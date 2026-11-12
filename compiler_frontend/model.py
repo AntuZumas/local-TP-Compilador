@@ -1,6 +1,10 @@
 """Datos del prototipo: apariciones, simbolos, diagnosticos y arbol sintactico."""
 
 from dataclasses import asdict, dataclass
+from itertools import count
+
+
+_node_counter = count(1)
 
 
 @dataclass(frozen=True)
@@ -13,7 +17,7 @@ class Diagnostic:
     severity: str = "error"
 
 
-@dataclass(frozen=True)
+@dataclass
 class Lexeme:
     type: str
     text: str
@@ -33,7 +37,7 @@ class Symbol:
 
 
 class SymbolTable:
-    """Registro léxico. No resuelve declaraciones ni ámbitos semánticos."""
+    """Registro léxico/sintáctico. No resuelve declaraciones ni ámbitos semánticos."""
 
     def __init__(self):
         self.entries: list[Symbol] = []
@@ -55,6 +59,7 @@ class Node:
     children: tuple
     line: int
     column: int
+    order: int = 0
 
 
 def make_node(kind, parts):
@@ -65,8 +70,13 @@ def make_node(kind, parts):
         elif part is not None:
             children.append(part)
     first = next((p for p in children if isinstance(p, (Node, Lexeme))), None)
-    return Node(kind, tuple(children), first.line if first else 1,
-                first.column if first else 1)
+    return Node(
+        kind,
+        tuple(children),
+        first.line if first else 1,
+        first.column if first else 1,
+        next(_node_counter),
+    )
 
 
 def walk_nodes(tree):

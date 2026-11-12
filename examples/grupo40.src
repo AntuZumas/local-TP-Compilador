@@ -1,62 +1,55 @@
-demo_grupo40
-comptime integer limite;
-integer total, indice;
-singlef tasa;
+grupo40
+comptime integer base, tope;
+integer resultado, aux;
+singlef promedio;
 
 class origen begin
-    integer saldo export to cuenta;
-    integer valor(integer entrada)
+    integer a, b export to derivada;
+    integer metodo(integer x, singlef y)
+    integer local;
     begin
-        ret(entrada);
-    end; export to cuenta;
-end;
-
-class auxiliar begin
-    integer extra;
-end;
-
-class cuenta import from origen begin
-    integer saldo;
-    singlef factor;
-    extends origen, auxiliar;
-    integer calcular(integer entrada, cuenta otra)
-        integer local;
-    begin
-        local := entrada + toi(otra[1$i]);
-        repeat begin
-            local := local - 1$i;
-            if (local == 2$i) ret(local); end_if;
-        end until (local <= 1$i);
+        local := x + toi(y);
         ret(local);
-    end;
+    end; export to derivada;
 end;
 
-cuenta objeto;
+class extra begin
+    singlef escala;
+end;
 
-integer function acumular(integer a, singlef b)
-    integer subtotal;
-    integer function doble(integer n)
+class derivada import from origen, extra begin
+    integer propio;
+    extends origen, extra;
+end;
+
+integer function calcular(integer p, integer q, singlef r)
+integer temp;
+begin
+    if (p >= q)
     begin
-        ret(n * 2$i);
-    end;
-begin
-    subtotal := doble(a)[1] + toi(b);
-    ret(subtotal);
+        temp := p + aux = (q * 2$i);
+    end
+    else
+        temp := toi(r);
+    end_if;
+    ret(temp);
 end;
 
+derivada item;
+
 begin
-    // Los efectos, tipos y referencias se resolverán en etapas posteriores.
-    total := 0$i;
-    indice := 0$i;
-    tasa := 1.5s+1;
-    total := acumular(total=(1$i), tasa)[2,1];
-    objeto[indice] = total;
-    objeto.calcular(total, objeto)[1,2];
-    total := total=(objeto.calcular(total, objeto)[1,2] + toi(.5));
-    if (total != 0$i) begin
-        pout("resultado:
- ");
-        pout(total);
-    end else pout("sin resultado"); end_if;
-    repeat total := total - 1$i; until (total < 1$i);
+    base := 10$i;
+    tope := 32767$i;
+    promedio := 1.25s-2 + .5;
+    item[0$i] := base;
+    item[1$i] := -32768$i;
+    repeat
+    begin
+        resultado := calcular(item[0$i], aux = (base + 1$i), promedio)[2$i, 1$i, 3$i];
+        item.metodo(resultado, promedio)[1$i, 2$i];
+        pout("avance
+ok");
+    end
+    until (resultado != 0$i);
+    pout(resultado);
 end
