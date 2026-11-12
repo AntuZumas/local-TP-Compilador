@@ -1,0 +1,6 @@
+demo
+integer precio;
+begin
+    precio := 7$i + 2$i * 3$i;
+    pout(precio);
+end

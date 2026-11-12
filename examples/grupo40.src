@@ -1,0 +1,62 @@
+demo_grupo40
+comptime integer limite;
+integer total, indice;
+singlef tasa;
+
+class origen begin
+    integer saldo export to cuenta;
+    integer valor(integer entrada)
+    begin
+        ret(entrada);
+    end; export to cuenta;
+end;
+
+class auxiliar begin
+    integer extra;
+end;
+
+class cuenta import from origen begin
+    integer saldo;
+    singlef factor;
+    extends origen, auxiliar;
+    integer calcular(integer entrada, cuenta otra)
+        integer local;
+    begin
+        local := entrada + toi(otra[1$i]);
+        repeat begin
+            local := local - 1$i;
+            if (local == 2$i) ret(local); end_if;
+        end until (local <= 1$i);
+        ret(local);
+    end;
+end;
+
+cuenta objeto;
+
+integer function acumular(integer a, singlef b)
+    integer subtotal;
+    integer function doble(integer n)
+    begin
+        ret(n * 2$i);
+    end;
+begin
+    subtotal := doble(a)[1] + toi(b);
+    ret(subtotal);
+end;
+
+begin
+    // Los efectos, tipos y referencias se resolverán en etapas posteriores.
+    total := 0$i;
+    indice := 0$i;
+    tasa := 1.5s+1;
+    total := acumular(total=(1$i), tasa)[2,1];
+    objeto[indice] = total;
+    objeto.calcular(total, objeto)[1,2];
+    total := total=(objeto.calcular(total, objeto)[1,2] + toi(.5));
+    if (total != 0$i) begin
+        pout("resultado:
+ ");
+        pout(total);
+    end else pout("sin resultado"); end_if;
+    repeat total := total - 1$i; until (total < 1$i);
+end

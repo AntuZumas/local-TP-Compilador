@@ -1,0 +1,8 @@
+demo_errores
+integer precio;
+begin
+    precio := 7$i + ;
+    pout("continua despues del primer error");
+    precio := (2$i + 3$i);
+    pout("continua despues del segundo error");
+end

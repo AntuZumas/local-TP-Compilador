@@ -1,0 +1,126 @@
+# Gramática generada desde compiler_frontend/parser.py con SLY 0.5.
+# No editar a mano. Regenerar: python scripts/export_grammar.py
+# Estados LALR: 256; shift/reduce: 0; reduce/reduce: 0.
+# <empty> = secuencia vacía; error = símbolo especial de recuperación.
+# La primera producción es el inicio aumentado del generador.
+
+S' -> program
+program -> ID declarations BEGIN global_statements END
+declarations -> <empty>
+declarations -> declarations declaration
+declaration -> comptime_declaration
+declaration -> class_declaration
+declaration -> function_declaration
+declaration -> object_declaration
+declaration -> variable_declaration
+basic_type -> SINGLEF
+basic_type -> INTEGER
+parameter_type -> ID
+parameter_type -> basic_type
+id_list -> ID
+id_list -> id_list , ID
+variable_declaration -> basic_type id_list ;
+object_declaration -> ID id_list ;
+comptime_declaration -> COMPTIME basic_type id_list ;
+function_declaration -> basic_type FUNCTION ID ( parameters ) declarations BEGIN function_statements END ;
+parameters -> parameter
+parameters -> parameters , parameter
+parameter -> parameter_type ID
+class_declaration -> CLASS ID import_opt BEGIN members END ;
+import_opt -> <empty>
+import_opt -> IMPORT FROM id_list
+members -> member
+members -> members member
+member -> inheritance
+member -> method_declaration
+member -> attribute_declaration
+attribute_declaration -> basic_type id_list export_opt ;
+export_opt -> <empty>
+export_opt -> EXPORT TO id_list
+method_declaration -> basic_type ID ( parameters ) declarations BEGIN function_statements END ; method_export_opt
+method_export_opt -> <empty>
+method_export_opt -> EXPORT TO id_list ;
+inheritance -> EXTENDS id_list ;
+global_statements -> global_statement
+global_statements -> global_statements global_statement
+function_statements -> function_statement
+function_statements -> function_statements function_statement
+global_statement -> global_repeat
+global_statement -> global_if
+global_statement -> simple_statement
+function_statement -> function_repeat
+function_statement -> function_if
+function_statement -> return_statement
+function_statement -> simple_statement
+simple_statement -> error ;
+simple_statement -> invocation ;
+simple_statement -> output ;
+simple_statement -> assignment ;
+assignment -> attribute = expression
+assignment -> ID ASSIGN expression
+output -> POUT ( STRING )
+output -> POUT ( expression )
+return_statement -> RET ( expression ) ;
+global_block -> BEGIN global_statements END
+global_block -> global_statement
+function_block -> BEGIN function_statements END
+function_block -> function_statement
+global_if -> IF ( condition ) global_block global_else END_IF ;
+global_else -> <empty>
+global_else -> ELSE global_block
+function_if -> IF ( condition ) function_block function_else END_IF ;
+function_else -> <empty>
+function_else -> ELSE function_block
+global_repeat -> REPEAT global_block UNTIL ( condition ) ;
+function_repeat -> REPEAT function_block UNTIL ( condition ) ;
+condition -> expression comparator expression
+comparator -> NE
+comparator -> EQ
+comparator -> LE
+comparator -> GE
+comparator -> <
+comparator -> >
+expression -> term
+expression -> expression - term
+expression -> expression + term
+term -> factor
+term -> term / factor
+term -> term * factor
+factor -> conversion
+factor -> inline_assignment
+factor -> invocation
+factor -> attribute
+factor -> number
+factor -> ID
+conversion -> TOI ( expression )
+inline_assignment -> ID = ( plain_expression )
+plain_expression -> plain_term
+plain_expression -> plain_expression - plain_term
+plain_expression -> plain_expression + plain_term
+plain_term -> plain_factor
+plain_term -> plain_term / plain_factor
+plain_term -> plain_term * plain_factor
+plain_factor -> plain_conversion
+plain_factor -> plain_invocation
+plain_factor -> attribute
+plain_factor -> number
+plain_factor -> ID
+plain_conversion -> TOI ( plain_expression )
+attribute -> ID [ index ]
+index -> number
+index -> ID
+invocation -> ID . ID ( arguments ) order
+invocation -> ID ( arguments ) order
+arguments -> expression
+arguments -> arguments , expression
+plain_invocation -> ID . ID ( plain_arguments ) order
+plain_invocation -> ID ( plain_arguments ) order
+plain_arguments -> plain_expression
+plain_arguments -> plain_arguments , plain_expression
+order -> [ order_items ]
+order_items -> ORDER_INDEX
+order_items -> order_items , ORDER_INDEX
+number -> - FLOAT
+number -> - INT
+number -> FLOAT
+number -> INT
