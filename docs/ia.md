@@ -65,8 +65,4 @@ Toda propuesta sugerida por las herramientas de IA fue sometida a una revision c
 
 ---
 
-## Auditoria y Preparacion para la Defensa Oral
-
-El grupo declara que **ninguna solucion generada por IA fue incorporada sin verificacion humana previa**:
-* **Verificacion de Pruebas:** Se ejecutaron las 43 pruebas automatizadas (`python -m unittest discover -v`) y los 24 programas de `tests/casos_prueba/` junto con `grupo40.src`, `minimo.src` y `errores.src`.
-* **Dominio del Codigo:** Todos los integrantes del grupo comprenden la totalidad de las clases, metodos, producciones gramaticales, generacion de Polaca Inversa y rutinas Assembler desarrolladas, y estan plenamente capacitados para explicar y defender de manera individual y grupal cada decision de diseño implementada en la evaluacion oral.
+El grupo declara que **ninguna solución generada por IA fue incorporada sin verificación humana previa**: la IA fue utilizada a conciencia y únicamente para agilizar el desarrollo del código. El uso de la misma no reemplazo el razonamiento y planificación de la implementación final.
