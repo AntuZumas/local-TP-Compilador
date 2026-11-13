@@ -79,5 +79,8 @@ python scripts/export_grammar.py
 
 La notación y las familias de reglas se explican en [la propuesta de gramática](docs/gramatica/propuesta.md).
 Los catálogos de [decisiones léxicas](docs/analizador-lexico/decisiones.md) y [decisiones sintácticas](docs/gramatica/decisiones.md) conservan la trazabilidad del diseño.
-
 Material y declaración de uso de IA en [docs](docs/README.md).
+
+Para acceder a los informes:
+- [Informe TP1 y TP2](https://docs.google.com/document/d/1BkzEz_rgfqBG1hilX8VvjYJVZF7BAFCQrXNVjToD9vk/edit?usp=sharing)
+- [Informe TP3 y TP4](https://docs.google.com/document/d/1_FrzoVZ6dBRvfSpVuc75mrJn3bv9lQNGY6NNRPq-jFk/edit?usp=sharing)
