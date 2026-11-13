@@ -1,0 +1,14 @@
+herenciaerr
+class padre1 begin
+    integer x;
+end;
+class padre2 begin
+    integer x;
+end;
+class hija begin
+    integer propio;
+    extends padre1, padre2;
+end;
+begin
+    pout(1);
+end

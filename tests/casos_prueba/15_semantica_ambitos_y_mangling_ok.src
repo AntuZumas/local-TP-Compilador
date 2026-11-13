@@ -1,0 +1,18 @@
+ambitosok
+integer a;
+integer function ext(integer x)
+    integer a;
+    integer function int_fn(integer w)
+        integer x;
+    begin
+        x := w + a;
+        ret(x);
+    end;
+begin
+    a := 10$i;
+    ret(int_fn(x)[1$i]);
+end;
+begin
+    a := ext(5$i)[1$i];
+    pout(a);
+end

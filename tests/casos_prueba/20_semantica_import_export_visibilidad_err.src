@@ -1,0 +1,14 @@
+visiberr
+class a begin
+    integer sec export to b;
+    integer m(integer p) begin ret(p); end; export to b;
+end;
+class c import from a begin
+    integer x;
+    integer probar(a obj) begin
+        ret(obj.m(1)[1]);
+    end;
+end;
+begin
+    pout(1);
+end

@@ -1,6 +1,6 @@
-"""Datos del prototipo: apariciones, simbolos, diagnosticos y arbol sintactico."""
+"""Datos del compilador: apariciones, simbolos, diagnosticos y arbol sintactico."""
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from itertools import count
 
 
@@ -27,30 +27,75 @@ class Lexeme:
     symbol: int | None = None
 
 
-@dataclass(frozen=True)
+@dataclass
 class Symbol:
     reference: int
     category: str
     text: str
     data_type: str | None
     value: str
+    usage: str | None = None
+    attrs: dict = field(default_factory=dict)
 
 
 class SymbolTable:
-    """Registro léxico/sintáctico. No resuelve declaraciones ni ámbitos semánticos."""
+    """Tabla de Símbolos léxica y semántica."""
 
     def __init__(self):
         self.entries: list[Symbol] = []
         self._references: dict[tuple, int] = {}
 
-    def intern(self, category, text, data_type=None, value=None):
+    def intern(self, category, text, data_type=None, value=None, usage=None, **attrs):
         key = (category, data_type, text)
         if key not in self._references:
             reference = len(self.entries) + 1
+            default_usage = usage or (
+                "constante" if category == "constant"
+                else "cadena" if category == "string"
+                else "identificador"
+            )
+            sym = Symbol(
+                reference=reference,
+                category=category,
+                text=text,
+                data_type=data_type,
+                value=text if value is None else str(value),
+                usage=default_usage,
+                attrs=dict(attrs),
+            )
             self._references[key] = reference
-            self.entries.append(Symbol(reference, category, text, data_type,
-                                       text if value is None else str(value)))
+            self.entries.append(sym)
+        else:
+            sym = self.get(self._references[key])
+            if data_type and not sym.data_type:
+                sym.data_type = data_type
+            if usage and (not sym.usage or sym.usage == "identificador"):
+                sym.usage = usage
+            if attrs:
+                sym.attrs.update(attrs)
         return self._references[key]
+
+    def get(self, reference: int) -> Symbol:
+        return self.entries[reference - 1]
+
+    def find_by_text(self, text: str) -> Symbol | None:
+        for entry in self.entries:
+            if entry.text == text:
+                return entry
+        return None
+
+    def rebuild_without_unscoped_identifiers(self):
+        """Elimina entradas léxicas crudas de identificadores que fueron reemplazadas por nombres con ámbito."""
+        kept = [
+            e for e in self.entries
+            if not (e.category == "identifier" and e.usage == "identificador" and ":" not in e.text)
+        ]
+        self.entries = []
+        self._references = {}
+        for idx, entry in enumerate(kept, start=1):
+            entry.reference = idx
+            self.entries.append(entry)
+            self._references[(entry.category, entry.data_type, entry.text)] = idx
 
 
 @dataclass(frozen=True)

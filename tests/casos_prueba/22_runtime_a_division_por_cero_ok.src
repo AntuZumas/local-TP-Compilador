@@ -1,0 +1,8 @@
+rtdivcero
+integer a, b, c;
+begin
+    a := 10$i;
+    b := 0$i;
+    c := a / b;
+    pout(c);
+end

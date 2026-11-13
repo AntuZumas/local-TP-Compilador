@@ -1,0 +1,10 @@
+ordenerr
+integer a;
+integer function f(integer p1, integer p2)
+begin
+    ret(p1 + p2);
+end;
+begin
+    a := f(1, 2)[1];
+    a := f(1, 2)[1, 3];
+end

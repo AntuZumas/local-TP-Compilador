@@ -1,0 +1,7 @@
+comptimeerr
+comptime integer k;
+integer dinamica;
+begin
+    dinamica := 5;
+    k := dinamica + 1;
+end

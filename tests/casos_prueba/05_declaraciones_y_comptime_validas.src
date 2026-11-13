@@ -2,6 +2,9 @@ declok
 comptime integer k1, k2;
 integer a, b, c;
 singlef r1, r2;
+class mi_clase begin
+    integer atrib;
+end;
 mi_clase obj1, obj2;
 begin
     a := 1$i;

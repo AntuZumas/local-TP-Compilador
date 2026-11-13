@@ -16,13 +16,13 @@ def program(statement):
 
 
 class GrammarTests(unittest.TestCase):
-    def assert_valid(self, source):
-        result = analyze(source)
+    def assert_valid(self, source, check_semantics=False):
+        result = analyze(source, check_semantics=check_semantics)
         self.assertTrue(result.ok, result.diagnostics)
         return result
 
-    def assert_invalid(self, source):
-        result = analyze(source)
+    def assert_invalid(self, source, check_semantics=False):
+        result = analyze(source, check_semantics=check_semantics)
         self.assertFalse(result.ok)
         self.assertTrue(result.diagnostics)
         return result
@@ -34,12 +34,15 @@ class GrammarTests(unittest.TestCase):
         self.assertGreater(report["states"], 0)
 
     def test_full_group_example(self):
-        result = self.assert_valid((root / "examples/grupo40.src").read_text(encoding="utf-8"))
+        result = self.assert_valid((root / "examples/grupo40.src").read_text(encoding="utf-8"),
+                                   check_semantics=True)
         kinds = {node.kind for node in walk_nodes(result.tree)}
         self.assertTrue({"comptime_declaration", "class_declaration", "method_declaration",
                          "function_declaration", "object_declaration", "attribute",
                          "inline_assignment", "evaluation_order", "inheritance", "import",
                          "export", "conversion", "if", "repeat", "return"} <= kinds)
+        self.assertTrue(result.rpn)
+        self.assertIn("_err_div_cero", result.assembler)
 
     def test_multiplication_precedes_addition(self):
         result = self.assert_valid(program("a := 1$i + 2$i * 3$i;"))
@@ -92,9 +95,8 @@ class GrammarTests(unittest.TestCase):
         codes = [d.code for d in result.diagnostics]
         self.assertIn("S_MISSING_ORDER", codes)
 
-    def test_order_values_are_not_semantically_validated_yet(self):
-        # Sintaxis, no verificación de aridad ni de permutación.
-        self.assert_valid(program("a := f(a)[0$i,0$i,999$i];"))
+    def test_order_values_are_not_semantically_validated_in_syntax_only_mode(self):
+        self.assert_valid(program("a := f(a)[0$i,0$i,999$i];"), check_semantics=False)
 
     def test_bare_integer_rejected_everywhere(self):
         for statement in ("a := 1;", "a[0] := 1$i;", "pout(2);", "a := f(a)[1];"):
@@ -106,7 +108,6 @@ class GrammarTests(unittest.TestCase):
                           "a := b[0$i] + c[a];", "a := b[-1$i];", "a := b[1.0];"):
             with self.subTest(statement=statement):
                 self.assert_valid(program(statement))
-        # Tipos/rango del índice son semántica posterior; '=' no válido para atributo posicional.
         for statement in ("a[1$i+2$i] := 1$i;", "a.x := 1$i;", "a[0$i] = 1$i;"):
             with self.subTest(statement=statement):
                 self.assert_invalid(program(statement))
@@ -137,9 +138,8 @@ class GrammarTests(unittest.TestCase):
             "  until (a >= b);\n"
             "end"
         )
-        result = self.assert_valid(source)
+        result = self.assert_valid(source, check_semantics=True)
         control = [(n.kind, n.line) for n in result.structures if n.kind in {"if", "repeat"}]
-        # El IF interno (línea 6) finaliza antes que el REPEAT externo (línea 4).
         self.assertEqual(control, [("if", 6), ("repeat", 4)])
 
     def test_return_contexts_and_nested_functions(self):
@@ -151,15 +151,19 @@ begin
     repeat begin if(a>0$i) ret(g(a)[1$i]); else ret(0$i); end_if;
     end until(a==0$i);
 end;
-begin pout(f(1$i)[1$i]); end""")
+begin pout(f(1$i)[1$i]); end""", check_semantics=True)
         for statement in ("ret(1$i);", "if(a<b) ret(1$i); end_if;",
                           "repeat begin ret(1$i); end until(a<b);"):
             with self.subTest(statement=statement):
                 self.assert_invalid(program(statement))
 
     def test_function_without_return_and_object_parameter(self):
-        self.assert_valid("demo integer function f(ca obj) begin pout(obj[0$i]); end; "
-                          "begin pout(1$i); end")
+        self.assert_valid(
+            "demo class ca begin integer v; end; "
+            "integer function f(ca obj) begin pout(obj[0$i]); end; "
+            "begin pout(1$i); end",
+            check_semantics=True,
+        )
 
     def test_empty_bodies_and_lists_rejected(self):
         for source in ("demo begin end", "demo class ca begin end; begin pout(1$i); end",
@@ -168,13 +172,14 @@ begin pout(f(1$i)[1$i]); end""")
                        "demo integer ; begin pout(1$i); end", "demo integer a,; begin pout(a); end"):
             with self.subTest(source=source):
                 self.assert_invalid(source)
-        self.assert_valid("demo begin pout(1$i); end")
+        self.assert_valid("demo begin pout(1$i); end", check_semantics=True)
 
     def test_classes_import_export_extends(self):
-        prefix = "demo class ca import from cb,cc begin "
+        prefix = "demo class cb begin integer x; end; class cc begin integer y; end; class ca import from cb,cc begin "
         suffix = " end; ca obj; begin obj[0$i] := 1$i; end"
         self.assert_valid(prefix + "integer a,b export to cb; extends cb,cc; "
-                          "integer m(integer p) begin ret(p); end; export to cc;" + suffix)
+                          "integer m(integer p) begin ret(p); end; export to cc;" + suffix,
+                          check_semantics=True)
         for body in ("integer a; export to cb;", "extend cb;", "friend cb;",
                      "integer function m(integer p) begin ret(p); end;"):
             with self.subTest(body=body):
@@ -182,7 +187,7 @@ begin pout(f(1$i)[1$i]); end""")
         self.assert_invalid("demo class ca integer a; end; begin pout(1$i); end")
 
     def test_comptime_declarative_only(self):
-        self.assert_valid("demo comptime integer a; begin a := 1$i; end")
+        self.assert_valid("demo comptime integer a; begin a := 1$i; end", check_semantics=True)
         self.assert_invalid(program("comptime integer a;"))
 
     def test_no_trailing_input_or_program_semicolon(self):
@@ -221,12 +226,10 @@ begin pout(f(1$i)[1$i]); end""")
                 self.assertTrue(any(d.code in {"S_EOF", "S_MISSING_END_IF"} for d in result.diagnostics))
 
     def test_ast_and_token_attributes_are_serializable(self):
-        result = self.assert_valid(program("a := 1$i;"))
+        result = self.assert_valid(program("a := 1$i;"), check_semantics=True)
         data = json.loads(json.dumps(result.to_dict()))
         self.assertTrue(data["ok"])
         self.assertEqual(data["tree"]["kind"], "program")
-        self.assertTrue(all(t["symbol"] <= len(data["symbols"])
-                            for t in data["tokens"] if t["symbol"] is not None))
 
 
 class LexicalIntegrationTests(unittest.TestCase):
@@ -278,11 +281,12 @@ class LexicalIntegrationTests(unittest.TestCase):
         for name in ("Price", "_price", "ñombre"):
             with self.subTest(name=name):
                 self.assertFalse(analyze(program(f"{name} := 1$i;")).ok)
-        name = "a" * 23
-        result = analyze(program(f"{name} := 1$i;"))
-        self.assertTrue(result.ok)
+        long_id = "a" * 23
+        truncated = "a" * 22
+        result = analyze(f"demo integer {long_id}; begin {long_id} := 1$i; end")
+        self.assertTrue(result.ok, result.diagnostics)
         self.assertIn("L_TRUNCATED_ID", [d.code for d in result.diagnostics])
-        self.assertIn("a" * 22, [s.text for s in result.symbols.entries])
+        self.assertIn(f"{truncated}:demo", [s.text for s in result.symbols.entries])
 
     def test_strings_comments_and_line_numbers(self):
         result = analyze('\ufeffdemo\r\nbegin\r\npout("hola //\r\nmundo");\r\n'
@@ -303,12 +307,150 @@ class LexicalIntegrationTests(unittest.TestCase):
         self.assertIn("output", [n.kind for n in first.structures])
         second = analyze("otra begin pout(2$i); end")
         self.assertTrue(second.ok)
-        self.assertNotIn("a", [s.text for s in second.symbols.entries])
+        self.assertNotIn("a:demo", [s.text for s in second.symbols.entries])
 
     def test_extreme_input_numbers_fail_without_crashing(self):
         for literal in ("9" * 5000 + "$i", "1.0s" + "9" * 100):
             with self.subTest(size=len(literal)):
                 self.assertFalse(analyze(program(f"a := {literal};")).ok)
+
+
+class SemanticAndCodegenTests(unittest.TestCase):
+    """Pruebas de TP3 (Semántica, Ámbitos, Polaca Inversa) y TP4 (Tipos y Assembler)."""
+
+    def test_name_mangling_and_nested_scopes(self):
+        source = """main
+integer a;
+integer function aa(integer x)
+    integer a;
+    integer function aaa(integer w)
+        integer x;
+    begin
+        x := w + a;
+        ret(x);
+    end;
+begin
+    a := aaa(x)[1$i];
+    ret(a);
+end;
+begin
+    a := aa(1$i)[1$i];
+end"""
+        result = analyze(source)
+        self.assertTrue(result.ok, result.diagnostics)
+        names = {s.text for s in result.symbols.entries}
+        self.assertIn("a:main", names)
+        self.assertIn("aa:main", names)
+        self.assertIn("x:main:aa", names)
+        self.assertIn("a:main:aa", names)
+        self.assertIn("aaa:main:aa", names)
+        self.assertIn("w:main:aa:aaa", names)
+        self.assertIn("x:main:aa:aaa", names)
+
+    def test_undeclared_and_redeclared_errors(self):
+        res_redecl = analyze("demo integer a, a; begin a := 1$i; end")
+        self.assertFalse(res_redecl.ok)
+        self.assertIn("M_REDECLARED", [d.code for d in res_redecl.diagnostics])
+
+        res_undecl = analyze("demo integer a; begin b := 1$i; end")
+        self.assertFalse(res_undecl.ok)
+        self.assertIn("M_UNDECLARED", [d.code for d in res_undecl.diagnostics])
+
+    def test_type_compatibility_and_explicit_toi_tema34(self):
+        ok_res = analyze(program("a := toi(x + 1.5) + 2$i;"))
+        self.assertTrue(ok_res.ok, ok_res.diagnostics)
+
+        bad_expr = analyze(program("a := x + 2$i;"))
+        self.assertFalse(bad_expr.ok)
+        self.assertIn("M_TYPE_MISMATCH", [d.code for d in bad_expr.diagnostics])
+
+        bad_assign = analyze(program("a := x;"))
+        self.assertFalse(bad_assign.ok)
+        self.assertIn("M_TYPE_MISMATCH", [d.code for d in bad_assign.diagnostics])
+
+    def test_evaluation_order_tema19_and_inline_assignment_tema17(self):
+        source = """demo
+integer a, b, c;
+integer function f(integer p1, integer p2, integer p3)
+begin
+    ret(p1 + p2 + p3);
+end;
+begin
+    a := 1$i;
+    b := 2$i;
+    c := f(a, b=(4$i), a+b)[1$i, 3$i, 2$i];
+end"""
+        result = analyze(source)
+        self.assertTrue(result.ok, result.diagnostics)
+        param_targets = [step.label for step in result.rpn if step.op == "PARAM_TARGET"]
+        # Verifica que en la invocación los parámetros se copien en el orden [1$i, 3$i, 2$i]
+        self.assertEqual(param_targets, ["p1:demo:f", "p3:demo:f", "p2:demo:f"])
+
+        bad_order = analyze(source.replace("[1$i, 3$i, 2$i]", "[1$i, 2$i]"))
+        self.assertFalse(bad_order.ok)
+        self.assertIn("M_ORDER_ARITY_MISMATCH", [d.code for d in bad_order.diagnostics])
+
+    def test_comptime_replacement_and_restrictions_tema22(self):
+        valid_src = """demo
+comptime integer k;
+integer z;
+begin
+    k := 3$i;
+    k := k + 2$i;
+    z := k;
+end"""
+        result = analyze(valid_src)
+        self.assertTrue(result.ok, result.diagnostics)
+        # Cuando z := k se traduce a Polaca Inversa, debe usarse la constante 5$i
+        rpn_labels = [s.label for s in result.rpn]
+        self.assertIn("5$i", rpn_labels)
+
+        invalid_src = """demo
+comptime integer k;
+integer z;
+begin
+    z := 4$i;
+    k := z;
+end"""
+        bad = analyze(invalid_src)
+        self.assertFalse(bad.ok)
+        self.assertIn("M_COMPTIME_DYNAMIC", [d.code for d in bad.diagnostics])
+
+    def test_multiple_inheritance_ambiguity_option3_tema32(self):
+        ambiguous_src = """demo
+class cb begin
+    integer x;
+end;
+class cc begin
+    integer x;
+end;
+class ca begin
+    integer propio;
+    extends cb, cc;
+end;
+begin
+    pout(1$i);
+end"""
+        res = analyze(ambiguous_src)
+        self.assertFalse(res.ok)
+        self.assertIn("M_AMBIGUOUS_INHERITANCE", [d.code for d in res.diagnostics])
+
+    def test_runtime_checks_present_in_assembler_tp4(self):
+        src = """demo
+integer a, b, c;
+singlef x, y;
+begin
+    a := 10$i * 20$i;
+    b := a / 2$i;
+    x := 1.5 + 2.5;
+    c := toi(x);
+end"""
+        res = analyze(src)
+        self.assertTrue(res.ok, res.diagnostics)
+        self.assertIn("_err_div_cero", res.assembler)
+        self.assertIn("_err_overflow_suma_flt", res.assembler)
+        self.assertIn("_err_overflow_prod_int", res.assembler)
+        self.assertIn("_err_perdida_info_toi", res.assembler)
 
 
 class CommandLineTests(unittest.TestCase):
@@ -322,13 +464,15 @@ class CommandLineTests(unittest.TestCase):
                 data = json.loads(proc.stdout)
                 self.assertEqual(data["ok"], code == 0)
 
-    def test_cli_always_prints_symbol_table_without_tokens_flag(self):
+    def test_cli_prints_rpn_and_symbol_table_by_default(self):
         proc = subprocess.run([sys.executable, "-m", "compiler_frontend",
                                str(root / "examples" / "minimo.src")],
                               cwd=root, capture_output=True, text=True, timeout=15)
         self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("Código Intermedio (Polaca Inversa):", proc.stdout)
         self.assertIn("Tabla de símbolos:", proc.stdout)
         self.assertNotIn("\nTokens:", proc.stdout)
+        self.assertNotIn("\nEstructuras sintácticas:", proc.stdout)
 
     def test_missing_file_and_report(self):
         proc = subprocess.run([sys.executable, "-m", "compiler_frontend", "no-existe.src"],

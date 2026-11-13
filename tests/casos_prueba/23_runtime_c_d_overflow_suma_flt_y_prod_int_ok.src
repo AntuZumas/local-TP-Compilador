@@ -1,0 +1,10 @@
+rtovf
+integer a, b;
+singlef x, y;
+begin
+    a := 20000$i;
+    b := a * 2$i;
+    x := 3.0s+38;
+    y := x + 3.0s+38;
+    pout(b);
+end

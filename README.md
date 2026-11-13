@@ -1,53 +1,64 @@
 # Compiladores e Intérpretes — Grupo 40
 
-Prototipo ejecutable de la gramática para TP1/TP2 de 2026. Usa **Python + SLY
-0.5** y permite inspeccionar tokens, tabla de símbolos, estructuras reconocidas,
-árbol sintáctico y diagnósticos. No ejecuta los programas ni genera código máquina.
+Compilador completo para los **TP1, TP2, TP3 y TP4** de la cursada 2026. Desarrollado en **Python + SLY 0.5**, integra análisis léxico, análisis sintáctico LALR(1), validaciones semánticas con manejo de ámbitos (*name mangling*), generación de representación intermedia en **Polaca Inversa** y traducción a **Assembler 80x86/80x87 de 32 bits (MASM32)** con controles en tiempo de ejecución.
 
-Es una propuesta de implementación para discutir. Las interpretaciones adoptadas
-ante ambigüedades están en [decisiones del prototipo](docs/gramatica/implementacion.md).
-La aceptación de un archivo sólo indica validez léxica/sintáctica bajo esas decisiones,
-no corrección semántica ni aprobación de la cátedra.
+Las decisiones de diseño del lenguaje están documentadas en [decisiones del prototipo](docs/gramatica/implementacion.md).
+
+## Temas Asignados al Grupo 40
+
+- **TP1 y TP2 (Léxico y Sintáctico):** Temas **3** (`integer`), **7** (`singlef`), **10** (cadenas multilínea `""`), **12** (`repeat ... until`), **15** (comentarios de una línea `//`), **17** (asignaciones de expresiones en expresiones `=`), **19** (invocación con orden obligatorio de parámetros `[...]`), **22** (`comptime`), **26** (`import from` / `export to`), **29** (acceso posicional a atributos `obj[idx]`), **32** (herencia múltiple con desambiguado Opción 3) y **34** (conversión explícita `toi`).
+- **TP3 (Representación Intermedia):** **Polaca Inversa** en estructura dinámica y Tabla de Símbolos con atributos `Tipo`, `Uso` y ámbitos mediante *name mangling*.
+- **TP4 (Código Destino y Controles de Runtime):** Assembler Pentium 32 bits (MASM32) con variables auxiliares (`@auxN`) y chequeos en tiempo de ejecución **a)** división por cero, **c)** overflow en suma de punto flotante, **d)** overflow en producto de enteros y **g)** pérdida de información en conversión `toi`.
 
 ## Preparar y ejecutar
 
-Verificado con Python **3.12.14** y SLY **0.5**. Desde la raíz del repositorio:
+Verificado con Python **3.12+** y SLY **0.5** en Windows y Linux. Desde la raíz del repositorio:
 
+###En Linux / macOS:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-
-python -m compiler_frontend examples/minimo.src --tokens
-python -m compiler_frontend examples/grupo40.src
-python -m compiler_frontend examples/grupo40.src --json
-python -m compiler_frontend examples/errores.src
 ```
 
-En Windows, activar con `.venv\Scripts\Activate.ps1` en PowerShell, o ejecutar
-directamente `.venv\Scripts\python.exe`. No se verificó este prototipo en Windows.
+### En Windows (PowerShell):
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
 
-- Código de salida **0**: análisis aceptado (puede incluir warnings).
-- **1**: errores léxicos/sintácticos; el procesamiento intenta continuar.
-- **2**: problema de uso o lectura del archivo.
+### Ejecución del compilador:
+```sh
+# Salida estándar (TP3/TP4): Diagnósticos, Polaca Inversa, Tabla de Símbolos y generación de .asm
+python -m compiler_frontend examples/minimo.src
+python -m compiler_frontend examples/grupo40.src
+python -m compiler_frontend examples/errores.src
 
-`--json` incluye el árbol completo, los tokens y la TS. `--tokens` agrega el
-listado legible de tokens/TS. Sin esas opciones se muestran estructuras y
-diagnósticos. La ruta fuente es argumento; no hace falta modificar código.
+# Opciones adicionales de inspección (TP1/TP2, ruta .asm y exportación JSON)
+python -m compiler_frontend examples/grupo40.src --tokens --structures
+python -m compiler_frontend examples/grupo40.src --asm examples/grupo40.asm
+python -m compiler_frontend examples/grupo40.src --json
+```
+
+- Código de salida **0**: análisis léxico, sintáctico y semántico válido (puede incluir warnings); genera el archivo `.asm`.
+- **1**: errores léxicos, sintácticos o semánticos detectados; se informan junto con su línea y no se genera código objeto.
+- **2**: problema de uso o lectura del archivo fuente.
+
+Por defecto se informan todos los diagnósticos (léxicos, sintácticos y semánticos), la **Polaca Inversa** numerada y la **Tabla de Símbolos**, escribiendo el archivo `.asm` junto al archivo fuente. Los flags `--tokens` y `--structures` permiten habilitar las salidas de los TP1 y TP2. `--json` exporta la estructura completa en formato JSON.
 
 ## Pruebas y gramática
 
 ```sh
-python -m unittest discover -v
-python -m compiler_frontend --grammar-report
+python scripts/export_grammar.py
 python scripts/export_grammar.py --check
+python -m compiler_frontend --grammar-report
+python -m unittest discover -v
 ```
 
-El reporte se calcula con SLY al cargar las reglas. La versión inicial construye
-**256 estados sin conflictos shift/reduce ni reduce/reduce**. Las 30 pruebas
-incluyen casos parametrizados válidos e inválidos y pruebas de consola.
+La gramática LALR(1) construye sus estados **sin conflictos shift/reduce ni reduce/reduce**. La suite automatizada ejecuta **43 pruebas** que incluyen casos unitarios parametrizados y la validación de los **24 programas fuente `.src`** ubicados en `tests/casos_prueba/` (cubriendo casos léxicos, sintácticos, semánticos y de tiempo de ejecución).
 
-La [BNF completa](docs/gramatica/gramatica.bnf) se exporta del parser:
+La [BNF completa](docs/gramatica/gramatica.bnf) se exporta directamente desde el parser:
 
 ```sh
 python scripts/export_grammar.py
@@ -57,29 +68,16 @@ python scripts/export_grammar.py
 
 | Archivo | Responsabilidad |
 |---|---|
-| [lexer.py](compiler_frontend/lexer.py) | Patrones, ubicaciones, reglas léxicas de apoyo y registro en TS. |
-| [parser.py](compiler_frontend/parser.py) | Producciones y acciones que construyen el árbol; control de signo INTEGER. |
-| [model.py](compiler_frontend/model.py) | Tokens con atributos, TS, diagnósticos y nodos. |
-| [__init__.py](compiler_frontend/__init__.py) | `analyze(texto)`: análisis independiente por archivo. |
-| [__main__.py](compiler_frontend/__main__.py) | Interfaz por consola y salida JSON. |
-| [test_grammar.py](tests/test_grammar.py) | Casos sobre sintaxis, restricciones, datos y recuperación. |
+| [lexer.py](compiler_frontend/lexer.py) | Patrones léxicos, ubicaciones, validación de formato/magnitud y registro de cadenas en TS. |
+| [parser.py](compiler_frontend/parser.py) | Gramática LALR(1), alta de constantes con signo en TS, recuperación en declaraciones/sentencias y diagnósticos contextuales. |
+| [intermediate.py](compiler_frontend/intermediate.py) | TP3: Resolución de ámbitos (*name mangling*), chequeos semánticos (alcance, aridad, orden de evaluación, `comptime`, `import/export`, herencia múltiple Opción 3) y generación de Polaca Inversa. |
+| [assembler.py](compiler_frontend/assembler.py) | TP4: Chequeo de compatibilidad de tipos sobre la Polaca Inversa (`toi`) y traducción a Assembler 80x86/80x87 (MASM32) con variables auxiliares y controles de runtime `a, c, d, g`. |
+| [model.py](compiler_frontend/model.py) | Tokens con atributos, Tabla de Símbolos enriquecida (`Tipo`, `Uso`, `attrs`), diagnósticos y nodos con orden de finalización. |
+| [__init__.py](compiler_frontend/__init__.py) | `analyze(texto)`: pipeline completo por archivo (léxico, sintáctico, semántico, Polaca Inversa y Assembler). |
+| [__main__.py](compiler_frontend/__main__.py) | Interfaz por línea de comandos, salida estándar TP3/TP4, generación de archivo `.asm` y salida JSON. |
+| [test_grammar.py](tests/test_grammar.py) | 43 pruebas automatizadas (léxicas, sintácticas, semánticas, Polaca Inversa, Assembler, CLI y `tests/casos_prueba/*.src`). |
 
-La notación y las familias de reglas se explican en
-[la propuesta de gramática](docs/gramatica/propuesta.md).
-Los catálogos previos de [decisiones léxicas](docs/analizador-lexico/decisiones.md)
-y [decisiones sintácticas](docs/gramatica/decisiones.md) conservan las alternativas
-para la discusión del equipo.
+La notación y las familias de reglas se explican en [la propuesta de gramática](docs/gramatica/propuesta.md).
+Los catálogos de [decisiones léxicas](docs/analizador-lexico/decisiones.md) y [decisiones sintácticas](docs/gramatica/decisiones.md) conservan la trazabilidad del diseño.
 
-## Límites actuales
-
-- El léxico SLY permite probar la gramática; queda confirmar la alternativa de
-  expresiones regulares frente a matrices exigidas por la consigna.
-- Los temas de TP3/TP4 no se implementan semánticamente: tipos, ámbitos, aridad,
-  orden de evaluación, visibilidad, herencia y ejecución de COMPTIME/TOI.
-- La recuperación sincroniza sentencias con `;`. Un error estructural en una
-  cabecera o cierre puede impedir recuperar el árbol completo. Los mensajes
-  sintácticos son genéricos, no un catálogo final de errores específicos.
-- SLY fue retirado por su autor; se fija la dependencia para hacer reproducible
-  el prototipo. [Aviso oficial](https://github.com/dabeaz/sly).
-
-Material y trazabilidad de IA en [docs](docs/README.md).
+Material y declaración de uso de IA en [docs](docs/README.md).

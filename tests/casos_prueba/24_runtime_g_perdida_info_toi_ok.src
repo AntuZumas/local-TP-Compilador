@@ -1,0 +1,8 @@
+rttoiloss
+integer a;
+singlef x;
+begin
+    x := 3.75;
+    a := toi(x);
+    pout(a);
+end
