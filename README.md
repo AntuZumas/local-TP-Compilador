@@ -14,7 +14,7 @@ Las decisiones de diseño del lenguaje están documentadas en [decisiones del pr
 
 Verificado con Python **3.12+** y SLY **0.5** en Windows y Linux. Desde la raíz del repositorio:
 
-###En Linux / macOS:
+### En Linux / macOS:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
