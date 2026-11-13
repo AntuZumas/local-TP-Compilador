@@ -1,8 +1,10 @@
 # Documentación de diseño — Grupo 40
 
-Estado al 14 de septiembre de 2026: prototipo ejecutable Python + SLY 0.5,
-verificado con 30 pruebas y tablas LALR sin conflictos. Las interpretaciones del
-prototipo siguen pendientes de ratificación por el grupo/cátedra.
+Estado actualizado a noviembre de 2026 (Segunda Entrega — TP1 a TP4): compilador
+ejecutable en Python + SLY 0.5, verificado con 43 pruebas automatizadas, 24 casos
+de prueba `.src`, tablas LALR(1) sin conflictos, generación de **Polaca Inversa** y
+traducción a **Assembler 80x86/80x87 de 32 bits (MASM32)** con controles en tiempo de
+ejecución (`a`, `c`, `d`, `g`).
 
 - [Cómo ejecutarlo](../README.md).
 - [Decisiones implementadas y límites](gramatica/implementacion.md).
@@ -13,8 +15,8 @@ prototipo siguen pendientes de ratificación por el grupo/cátedra.
   alternativas, recomendaciones, contrato con el parser y pruebas necesarias.
 - [Propuesta de gramática](gramatica/propuesta.md): notación, reglas ejecutables y cobertura
   de los temas asignados.
-- [Decisiones de gramática](gramatica/decisiones.md): preguntas que resolver,
-  ejemplos y criterios para cerrar el diseño.
+- [Decisiones de gramática](gramatica/decisiones.md): preguntas iniciales,
+  ejemplos y criterios ratificados tras la devolución de la primera entrega.
 
 ## Fuentes
 
@@ -26,26 +28,19 @@ documentos. Las páginas citadas son páginas del PDF, contadas desde 1.
 | T | `03.Análisis Léxico.pdf`, 77 páginas: teoría de la cátedra. |
 | TP1 | `Tp01-2026.pdf`, 3 páginas: requisitos léxicos de 2026. |
 | TP2 | `Tp02-2026.pdf`, 9 páginas: sintaxis y temas particulares de 2026. |
-| P | `Presentacion TP1- Compiladores 2026.pdf`, 40 páginas. |
+| DEV | `Grupo 40 - Devolución TP1-2.docx`: correcciones de la cátedra sobre la primera entrega. |
+| TP3 | `Tp03-2026.pdf`, 12 páginas: semántica, ámbitos (*name mangling*) y Polaca Inversa. |
+| RCI | `Resumen Generación código intermedio.pdf`, 39 páginas: teoría de Polaca Inversa, Tercetos y Árbol Sintáctico. |
+| TP4 | `Tp04-2026.pdf`, 4 páginas: generación de Assembler 80x86/80x87 y controles en tiempo de ejecución (`acdg`). |
 | G | [Informe del grupo 40](https://docs.google.com/document/d/1BkzEz_rgfqBG1hilX8VvjYJVZF7BAFCQrXNVjToD9vk/edit): temas 3, 7, 10, 12, 15, 17, 19, 22, 26, 29, 32 y 34. |
 
-La teoría enseña mecanismos con ejemplos de otros lenguajes. Para determinar
-qué acepta nuestro compilador se usan las consignas de 2026 y los temas del
-grupo; las contradicciones se registran para consultar al docente.
+## Resoluciones adoptadas tras la devolución de TP1/TP2 e integración de TP3/TP4
 
-El prototipo usa Python + SLY; queda confirmar con la cátedra la exigencia de
-matrices para el léxico. TP2 indica entrega el 18/09/2026; confirmar cualquier
-actualización con la cátedra. Las opciones iniciales están conservadas en los
-catálogos de decisiones; las efectivamente implementadas están en el documento
-de implementación.
+- **Alta de constantes con signo en TS:** el lexer valida el formato y tope absoluto (`<= 32768` en `INTEGER`, rango IEEE 754 en `SINGLEF`), difiriendo la inserción en la Tabla de Símbolos al parser para evitar que constantes negativas (`-1$i`, `-1.2`) dejen registrada su magnitud positiva si esta no figura en el programa.
+- **Orden de evaluación (Tema 19) y atributos posicionales (Tema 29):** se unificó el uso de constantes enteras del grupo (`$i`) dentro de los corchetes de orden (`[2$i, 1$i]`), eliminando el token `ORDER_INDEX`, y se adoptó `:=` para la asignación a atributos posicionales (`obj[0$i] := expr;`).
+- **Informe de estructuras y salida por consola:** las estructuras `IF` y `REPEAT` se registran en orden de finalización conservando su línea de inicio. La salida por defecto muestra diagnósticos unificados, Polaca Inversa y Tabla de Símbolos, generando el archivo `.asm` correspondiente.
 
 ## Convenciones de estado
 
-- **Requisito:** está expresado en la consigna.
-- **Propuesta:** recomendación técnica que el grupo puede aceptar o cambiar.
-- **Consulta:** falta aclarar una contradicción o un punto no especificado.
-- **Pendiente:** falta tomar o verificar una decisión.
-
-Los ejemplos conceptuales de los catálogos siguen siendo ilustrativos. Los
-archivos de `examples/` y las pruebas ejercitan la API del prototipo. Ninguna
-salida sintáctica demuestra que el programa sea semánticamente válido.
+- **Requisito:** está expresado en la consigna o en la devolución de la cátedra.
+- **Implementado:** resuelto y verificado mediante pruebas unitarias y casos `.src`.
